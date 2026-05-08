@@ -273,9 +273,19 @@
         <div id="stat-bars"></div>
       </div>
       <div class="stat-card wide">
+  <div class="lbl">Heures semaine (−30min pause/jour)</div>
+  <div class="stat-val" id="stat-week-break">0h 00</div>
+  <div class="stat-sub" id="stat-week-break-sub">0 jour travaillé</div>
+</div>
+      <div class="stat-card wide">
         <div class="lbl">Moyenne / jour (30j)</div>
         <div class="stat-val" id="stat-avg">0h 00</div>
         <div class="stat-sub">sur jours travaillés</div>
+      </div>
+      <div class="stat-card wide">
+  <div class="lbl">Heures mois (−30min pause/jour)</div>
+  <div class="stat-val" id="stat-month-break">0h 00</div>
+  <div class="stat-sub" id="stat-month-break-sub">0 jour travaillé</div>
       </div>
     </div>
   </div>
@@ -631,36 +641,131 @@ function renderCorrSummary(){
 // ═══ STATS ═══
 function renderStats(){
   const mon=getMondayOfWeek(0);
+
+  // ───── SEMAINE ─────
   const wm=weekMins(mon);
+
   let wd=0;
-  for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(d.getDate()+i);if(dayMins(localKey(d))>1)wd++;}
-  document.getElementById('stat-week').textContent=fmtMs(wm);
-  document.getElementById('stat-week-sub').textContent=`${wd} jour${wd>1?'s':''} travaillé${wd>1?'s':''}`;
+  let wmBreak=0;
 
-  const now=new Date();let mm=0,md=0;
-  for(let d=1;d<=now.getDate();d++){
-    const k=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(d)}`;
-    const m=dayMins(k);mm+=m;if(m>1)md++;
+  for(let i=0;i<7;i++){
+    const d=new Date(mon);
+    d.setDate(d.getDate()+i);
+
+    const mins=dayMins(localKey(d));
+
+    if(mins>1){
+      wd++;
+
+      // retire 30min de pause
+      wmBreak += Math.max(0, mins-30);
+    }
   }
-  document.getElementById('stat-month').textContent=fmtMs(mm);
-  document.getElementById('stat-month-sub').textContent=`${md} jour${md>1?'s':''}`;
 
+  document.getElementById('stat-week').textContent=fmtMs(wm);
+
+  document.getElementById('stat-week-sub').textContent=
+    `${wd} jour${wd>1?'s':''} travaillé${wd>1?'s':''}`;
+
+  // Semaine avec pause
+  document.getElementById('stat-week-break').textContent=
+    fmtMs(wmBreak);
+
+  document.getElementById('stat-week-break-sub').textContent=
+    `${wd} jour${wd>1?'s':''} travaillé${wd>1?'s':''} · pause déduite`;
+
+  // ───── MOIS ─────
+  const now=new Date();
+
+  let mm=0;
+  let md=0;
+  let mmBreak=0;
+
+  for(let d=1;d<=now.getDate();d++){
+
+    const k=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(d)}`;
+
+    const m=dayMins(k);
+
+    mm+=m;
+
+    if(m>1){
+      md++;
+
+      // retire 30min de pause
+      mmBreak += Math.max(0,m-30);
+    }
+  }
+
+  document.getElementById('stat-month').textContent=
+    fmtMs(mm);
+
+  document.getElementById('stat-month-sub').textContent=
+    `${md} jour${md>1?'s':''} travaillé${md>1?'s':''}`;
+
+  // Mois avec pause
+  document.getElementById('stat-month-break').textContent=
+    fmtMs(mmBreak);
+
+  document.getElementById('stat-month-break-sub').textContent=
+    `${md} jour${md>1?'s':''} travaillé${md>1?'s':''} · pause déduite`;
+
+  // ───── BARRES SEMAINE ─────
   const bars=document.getElementById('stat-bars');
-  const vals=[];let mx=0;
-  for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(d.getDate()+i);const m=dayMins(localKey(d));vals.push(m);if(m>mx)mx=m;}
+
+  const vals=[];
+  let mx=0;
+
+  for(let i=0;i<7;i++){
+
+    const d=new Date(mon);
+    d.setDate(d.getDate()+i);
+
+    const m=dayMins(localKey(d));
+
+    vals.push(m);
+
+    if(m>mx) mx=m;
+  }
+
   if(!mx) mx=480;
+
   bars.innerHTML=vals.map((m,i)=>`
     <div class="bar-row">
       <div class="bar-day">${DSHORT[i]}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,(m/mx)*100).toFixed(1)}%"></div></div>
-      <div class="bar-val">${m>0?fmtMs(m):'—'}</div>
-    </div>`).join('');
 
-  let tot=0,twd=0;
-  for(let i=0;i<30;i++){const d=new Date();d.setDate(d.getDate()-i);const m=dayMins(localKey(d));if(m>1){tot+=m;twd++;}}
-  document.getElementById('stat-avg').textContent=fmtMs(twd>0?tot/twd:0);
+      <div class="bar-track">
+        <div class="bar-fill"
+          style="width:${Math.min(100,(m/mx)*100).toFixed(1)}%">
+        </div>
+      </div>
+
+      <div class="bar-val">
+        ${m>0?fmtMs(m):'—'}
+      </div>
+    </div>
+  `).join('');
+
+  // ───── MOYENNE 30J ─────
+  let tot=0;
+  let twd=0;
+
+  for(let i=0;i<30;i++){
+
+    const d=new Date();
+    d.setDate(d.getDate()-i);
+
+    const m=dayMins(localKey(d));
+
+    if(m>1){
+      tot+=m;
+      twd++;
+    }
+  }
+
+  document.getElementById('stat-avg').textContent=
+    fmtMs(twd>0?tot/twd:0);
 }
-
 // ═══ NAV ═══
 function showPage(id,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
